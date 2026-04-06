@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SensoryReader</title>
+<style>
+/* ============================================================
+   RESET & TOKENS
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --text: #e8e8ec;
+  --text2: #8b8b9e;
+  --dim: #5a5a6e;
+  --bg: #0c0c14;
+  --surface: #12121c;
+  --surface2: #1a1a28;
+  --surface-hover: #222236;
+  --accent: #e74c3c;
+  --accent2: #c0392b;
+  --accent-soft: rgba(231,76,60,0.12);
+  --border: rgba(255,255,255,0.08);
+  --radius: 8px;
+  --radius-lg: 14px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+  --mono: "SF Mono", "Menlo", monospace;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button { font-family: var(--font); border: none; background: none; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+input, textarea, select { font-family: var(--font); }
+
+/* ============================================================
+   APP LAYOUT
+   ============================================================ */
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+.view { display: none; height: 100%; flex-direction: column; }
+.view.active { display: flex; }
+
+/* ============================================================
+   INPUT VIEW
+   ============================================================ */
+#input-view {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bottom));
+}
+
+.logo { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; background: linear-gradient(135deg, #e74c3c, #e67e22, #f1c40f); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 4px; }
+.subtitle { color: var(--text2); font-size: 14px; margin-bottom: 32px; }
+.section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); margin-bottom: 12px; }
+
+/* Sample grid */
+.sample-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-bottom: 28px; }
+.sample-card { display: flex; flex-direction: column; gap: 2px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); text-align: left; transition: background 0.15s; }
+.sample-card:active { background: var(--surface-hover); }
+.sample-card .title { font-size: 13px; font-weight: 600; }
+.sample-card .author { font-size: 10px; color: var(--dim); }
+
+/* Text input */
+.input-group { margin-bottom: 24px; }
+.input-group textarea { width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 14px; resize: vertical; min-height: 100px; }
+.input-group textarea:focus { outline: none; border-color: var(--accent); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 600; transition: background 0.15s; min-height: 48px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:active { background: var(--accent2); }
+.btn-primary:disabled { opacity: 0.35; }
+.btn-outline { border: 1px solid var(--border); color: var(--text2); }
+.btn-outline:active { background: var(--surface-hover); }
+
+/* File drop */
+.file-drop { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px; border: 2px dashed var(--border); border-radius: var(--radius); text-align: center; color: var(--text2); font-size: 13px; transition: border-color 0.15s; margin-bottom: 24px; }
+.file-drop.dragover { border-color: var(--accent); background: var(--accent-soft); }
+.file-drop input { display: none; }
+.file-formats { font-size: 11px; color: var(--dim); font-family: var(--mono); }
+
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ============================================================
+   READER VIEW
+   ============================================================ */
+#reader-view { position: relative; background: var(--bg); }
+
+/* Background */
+#bg-layer { position: absolute; inset: 0; z-index: 0; }
+#bg-solid { position: absolute; inset: 0; }
+#bg-youtube { position: absolute; inset: 0; border: none; pointer-events: none; transform: scale(1.2); transform-origin: center; }
+
+/* Overlay */
+#bg-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+
+/* Content layer */
+#reader-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; pointer-events: none; }
+#reader-content > * { pointer-events: auto; }
+
+/* Progress */
+#progress-bar { height: 3px; background: rgba(255,255,255,0.06); flex-shrink: 0; }
+#progress-fill { height: 100%; background: var(--accent); transition: width 0.15s; width: 0%; }
+
+/* Top toolbar */
+#toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; padding-top: calc(8px + var(--safe-top)); flex-shrink: 0; }
+#toolbar .spacer { flex: 1; }
+.tool-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(0,0,0,0.4); font-size: 18px; }
+.tool-btn:active { background: rgba(255,255,255,0.1); }
+.tool-btn.active { border-color: var(--accent); color: var(--accent); }
+#wpm-label { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text2); text-align: center; }
+
+/* Marquee */
+#reader-stage { flex: 1; position: relative; pointer-events: none; }
+#marquee {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%; max-width: 800px;
+  min-height: 80px;
+  background: rgba(10,10,18,0.75);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px 24px;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+
+/* ORP grid */
+#orp-grid { display: grid; grid-template-columns: 1fr auto 1fr; width: 100%; align-items: center; white-space: nowrap; line-height: 1.2; }
+#orp-before { text-align: right; overflow: hidden; min-width: 0; }
+#orp-pivot { text-align: center; }
+#orp-after { text-align: left; overflow: hidden; min-width: 0; }
+
+/* ORP tick */
+#orp-tick { position: absolute; left: 50%; top: 0; width: 0; height: 5px; border-left: 2px solid var(--accent); opacity: 0.35; transform: translateX(-50%); }
+
+/* ============================================================
+   PLAYBACK CONTROLS (bottom)
+   ============================================================ */
+#controls {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + var(--safe-bottom));
+  background: rgba(12,12,20,0.9);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+}
+
+#transport { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 10px; }
+.transport-btn { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; background: rgba(255,255,255,0.06); color: var(--text2); }
+.transport-btn:active { background: rgba(255,255,255,0.12); }
+.transport-btn.play { width: 56px; height: 56px; background: var(--accent); color: #fff; font-size: 24px; }
+.transport-btn.play:active { background: var(--accent2); }
+
+#scrubber { width: 100%; height: 6px; -webkit-appearance: none; appearance: none; background: rgba(255,255,255,0.1); border-radius: 3px; outline: none; margin-bottom: 10px; }
+#scrubber::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); }
+
+#controls-info { display: flex; align-items: center; gap: 12px; }
+#wpm-controls { display: flex; align-items: center; gap: 6px; }
+.wpm-btn { width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text2); }
+.wpm-btn:active { background: rgba(255,255,255,0.08); }
+#wpm-val { min-width: 44px; text-align: center; font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
+
+#wpm-slider { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: rgba(255,255,255,0.1); border-radius: 3px; outline: none; min-width: 60px; }
+#wpm-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); }
+
+#reading-stats { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; margin-left: auto; }
+
+/* ============================================================
+   SETTINGS DRAWER (slide-up)
+   ============================================================ */
+#settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; }
+#settings-overlay.active { display: block; }
+
+#settings-drawer {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 101;
+  max-height: 70vh;
+  background: var(--surface);
+  border-top-left-radius: 20px; border-top-right-radius: 20px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  padding-bottom: var(--safe-bottom);
+}
+#settings-drawer.active { transform: translateY(0); }
+
+#drawer-handle { display: flex; justify-content: center; padding: 10px; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+#drawer-handle::after { content: ''; width: 36px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+.drawer-section { padding: 0 20px 20px; }
+.drawer-section .section-label { margin-bottom: 10px; }
+
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; min-height: 44px; }
+.setting-row label { font-size: 13px; color: var(--text2); }
+.setting-row input[type="range"] { width: 120px; height: 6px; -webkit-appearance: none; appearance: none; background: rgba(255,255,255,0.1); border-radius: 3px; }
+.setting-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); }
+.setting-row select { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; min-height: 40px; }
+.setting-row input[type="color"] { width: 40px; height: 32px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); padding: 2px; }
+.setting-val { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: 8px; min-width: 40px; text-align: right; }
+
+/* Preset chips */
+.preset-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.preset-chip { padding: 10px 16px; border: 1px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 500; color: var(--text2); min-height: 40px; display: flex; align-items: center; }
+.preset-chip:active { background: var(--surface-hover); }
+.preset-chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+/* Toggle */
+.toggle { position: relative; width: 44px; height: 26px; border-radius: 13px; background: rgba(255,255,255,0.1); transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--accent); }
+.toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.2s; }
+.toggle.on::after { transform: translateX(18px); }
+
+/* YouTube URL input */
+.yt-input { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; min-height: 44px; }
+.yt-input:focus { outline: none; border-color: var(--accent); }
+
+/* Chunk segmented */
+.seg-group { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.seg-btn { flex: 1; padding: 8px 12px; font-size: 12px; font-weight: 500; color: var(--dim); text-align: center; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+.seg-btn:not(:last-child) { border-right: 1px solid var(--border); }
+.seg-btn.active { background: var(--accent-soft); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- ============================================================
+       INPUT VIEW
+       ============================================================ -->
+  <div id="input-view" class="view active">
+    <h1 class="logo">SensoryReader</h1>
+    <p class="subtitle">Speed reading with optimal recognition point alignment</p>
+
+    <p class="section-label">Sample Library</p>
+    <div class="sample-grid" id="sample-grid"></div>
+
+    <p class="section-label">Paste Text</p>
+    <div class="input-group">
+      <textarea id="paste-input" placeholder="Paste your text here..." rows="4"></textarea>
+    </div>
+    <div class="btn-row" style="margin-bottom:24px">
+      <button class="btn btn-primary" id="load-paste-btn" disabled>Load Text</button>
+    </div>
+
+    <p class="section-label">Upload File</p>
+    <div class="file-drop" id="file-drop">
+      <span>Tap to upload or drop file</span>
+      <span class="file-formats">PDF, TXT, MD</span>
+      <input type="file" id="file-input" accept=".txt,.text,.pdf,.md">
+    </div>
+  </div>
+
+  <!-- ============================================================
+       READER VIEW
+       ============================================================ -->
+  <div id="reader-view" class="view">
+    <!-- Background -->
+    <div id="bg-layer">
+      <div id="bg-solid"></div>
+    </div>
+    <div id="bg-overlay"></div>
+
+    <!-- Content -->
+    <div id="reader-content">
+      <div id="progress-bar"><div id="progress-fill"></div></div>
+
+      <div id="toolbar">
+        <button class="tool-btn" id="settings-btn">&#9881;</button>
+        <button class="tool-btn" id="back-btn">&#8592;</button>
+        <span class="spacer"></span>
+        <span id="wpm-label">300 WPM</span>
+        <span class="spacer"></span>
+      </div>
+
+      <div id="reader-stage">
+        <div id="marquee">
+          <div id="orp-tick"></div>
+          <div id="orp-grid">
+            <span id="orp-before"></span>
+            <span id="orp-pivot" style="color:var(--accent)"></span>
+            <span id="orp-after"></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="controls">
+        <div id="transport">
+          <button class="transport-btn" id="rewind-btn">&#9194;</button>
+          <button class="transport-btn play" id="play-btn">&#9654;</button>
+          <button class="transport-btn" id="skip-btn">&#9193;</button>
+        </div>
+        <input type="range" id="scrubber" min="0" max="0" value="0">
+        <div id="controls-info">
+          <div id="wpm-controls">
+            <button class="wpm-btn" id="wpm-down">&minus;</button>
+            <span id="wpm-val">300</span>
+            <button class="wpm-btn" id="wpm-up">+</button>
+          </div>
+          <input type="range" id="wpm-slider" min="100" max="1000" step="25" value="300">
+          <span id="reading-stats"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Drawer -->
+<div id="settings-overlay"></div>
+<div id="settings-drawer">
+  <div id="drawer-handle"></div>
+
+  <div class="drawer-section">
+    <p class="section-label">Presets</p>
+    <div class="preset-chips" id="preset-chips"></div>
+  </div>
+
+  <div class="drawer-section">
+    <p class="section-label">Speed</p>
+    <div class="setting-row">
+      <label>WPM</label>
+      <div style="display:flex;align-items:center">
+        <input type="range" id="s-wpm" min="100" max="1000" step="25" value="300">
+        <span class="setting-val" id="s-wpm-val">300</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>Chunk Size</label>
+      <div class="seg-group" id="chunk-group">
+        <button class="seg-btn active" data-val="1">1</button>
+        <button class="seg-btn" data-val="2">2</button>
+        <button class="seg-btn" data-val="3">3</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>Adaptive Slowdown</label>
+      <div class="toggle on" id="s-slowdown"></div>
+    </div>
+    <div class="setting-row">
+      <label>Ramp-up</label>
+      <div class="toggle" id="s-rampup"></div>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <p class="section-label">Typography</p>
+    <div class="setting-row">
+      <label>Font</label>
+      <select id="s-font">
+        <option value="Georgia, serif">Georgia</option>
+        <option value="-apple-system, sans-serif">System Sans</option>
+        <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+        <option value="'Atkinson Hyperlegible', sans-serif">Atkinson</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label>Size</label>
+      <div style="display:flex;align-items:center">
+        <input type="range" id="s-fontsize" min="24" max="72" value="40">
+        <span class="setting-val" id="s-fontsize-val">40px</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>ORP Color</label>
+      <input type="color" id="s-orpcolor" value="#e74c3c">
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <p class="section-label">Background</p>
+    <div class="setting-row">
+      <label>Mode</label>
+      <div class="seg-group" id="bg-mode-group">
+        <button class="seg-btn active" data-val="solid">Solid</button>
+        <button class="seg-btn" data-val="youtube">YouTube</button>
+      </div>
+    </div>
+    <div class="setting-row" id="bg-color-row">
+      <label>Color</label>
+      <input type="color" id="s-bgcolor" value="#1a1a2e">
+    </div>
+    <div class="setting-row" id="yt-url-row" style="display:none">
+      <input type="text" class="yt-input" id="s-yturl" placeholder="YouTube URL..." value="https://youtube.com/watch?v=vTfD20dbxho">
+    </div>
+    <div class="setting-row">
+      <label>Overlay Opacity</label>
+      <div style="display:flex;align-items:center">
+        <input type="range" id="s-overlay" min="0" max="1" step="0.05" value="0.2">
+        <span class="setting-val" id="s-overlay-val">0.20</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>Panel Opacity</label>
+      <div style="display:flex;align-items:center">
+        <input type="range" id="s-panel-opacity" min="0" max="1" step="0.05" value="0.75">
+        <span class="setting-val" id="s-panel-opacity-val">0.75</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SENSORYREADER — STANDALONE VANILLA JS
+   ============================================================ */
+(function() {
+  'use strict';
+
+  // === SAMPLES ===
+  const SAMPLES = [
+    { id:'welcome', title:'Welcome Guide', author:'SensoryReader', text: getWelcomeText() },
+    { id:'meditations', title:'Meditations', author:'Marcus Aurelius', gutenbergId:2680 },
+    { id:'enchiridion', title:'Enchiridion', author:'Epictetus', gutenbergId:null },
+    { id:'letters', title:'Letters from a Stoic', author:'Seneca', gutenbergId:3794 },
+    { id:'prince', title:'The Prince', author:'Machiavelli', gutenbergId:1232 },
+    { id:'confessions', title:'Confessions', author:'Augustine', gutenbergId:3296 },
+  ];
+
+  // === PRESETS ===
+  const PRESETS = [
+    { id:'welcome', name:'Welcome', wpm:250, font:'system', fontSize:40, bg:'youtube', ytUrl:'https://www.youtube.com/watch?v=3vH-XwMDh-0', color:'#0f0f1a', overlay:0.2, rampUp:true },
+    { id:'focus', name:'Focus', wpm:300, font:'georgia', fontSize:44, bg:'solid', color:'#1a1a2e', overlay:0.7 },
+    { id:'sprint', name:'Sprint', wpm:600, font:'system', fontSize:38, bg:'solid', color:'#111118', overlay:0.5 },
+    { id:'cinematic', name:'Cinematic', wpm:250, font:'georgia', fontSize:52, bg:'youtube', ytUrl:'https://youtube.com/watch?v=vTfD20dbxho', color:'#0d0d0d', overlay:0.3, rampUp:true },
+    { id:'night', name:'Night', wpm:300, font:'georgia', fontSize:44, bg:'solid', color:'#1c1410', overlay:0.9, orpColor:'#e67e22' },
+  ];
+
+  const FONT_MAP = {
+    'georgia': 'Georgia, serif',
+    'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    'mono': "'JetBrains Mono', monospace",
+    'atkinson': "'Atkinson Hyperlegible', sans-serif",
+  };
+
+  // === STATE ===
+  let tokens = [];
+  let chunks = [];
+  let currentIndex = 0;
+  let playing = false;
+  let timer = null;
+  let startTime = 0;
+  let config = {
+    wpm: 300, chunkSize: 1, adaptiveSlowdown: true, rampUp: false,
+    fontFamily: 'Georgia, serif', fontSize: 40, orpColor: '#e74c3c',
+    bgMode: 'solid', bgColor: '#1a1a2e', ytUrl: '', overlayOpacity: 0.2,
+    panelOpacity: 0.75,
+  };
+
+  // === DOM ===
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+
+  const inputView = $('#input-view');
+  const readerView = $('#reader-view');
+  const sampleGrid = $('#sample-grid');
+  const pasteInput = $('#paste-input');
+  const loadPasteBtn = $('#load-paste-btn');
+  const fileDrop = $('#file-drop');
+  const fileInput = $('#file-input');
+
+  const bgSolid = $('#bg-solid');
+  const bgOverlay = $('#bg-overlay');
+  const progressFill = $('#progress-fill');
+  const wpmLabel = $('#wpm-label');
+  const orpBefore = $('#orp-before');
+  const orpPivot = $('#orp-pivot');
+  const orpAfter = $('#orp-after');
+  const orpGrid = $('#orp-grid');
+  const marquee = $('#marquee');
+  const playBtn = $('#play-btn');
+  const scrubber = $('#scrubber');
+  const wpmVal = $('#wpm-val');
+  const wpmSlider = $('#wpm-slider');
+  const readingStats = $('#reading-stats');
+  const settingsOverlay = $('#settings-overlay');
+  const settingsDrawer = $('#settings-drawer');
+
+  // === ORP ===
+  function orpIndex(word) {
+    if (word.length <= 1) return 0;
+    if (word.length <= 3) return 1;
+    return Math.floor(word.length / 4) + 1;
+  }
+
+  // === TOKENIZER ===
+  function tokenize(text) {
+    const words = text.replace(/<[^>]*>/g,' ').replace(/&[a-z]+;/gi,' ').replace(/\s+/g,' ').trim().split(' ').filter(w => w);
+    let sentenceIdx = 0;
+    return words.map((word, i) => {
+      const punct = /[.!?]$/.test(word) ? 'sentence' : /[,;:]$/.test(word) ? 'pause' : null;
+      const token = { word, index: i, sentenceIndex: sentenceIdx, orpIndex: orpIndex(word), punct, isLong: word.replace(/[^a-zA-Z]/g,'').length >= 7 };
+      if (punct === 'sentence') sentenceIdx++;
+      return token;
+    });
+  }
+
+  function buildChunks() {
+    const size = config.chunkSize;
+    chunks = [];
+    for (let i = 0; i < tokens.length; i += size) {
+      const group = tokens.slice(i, Math.min(i + size, tokens.length));
+      const text = group.map(t => t.word).join(' ');
+      chunks.push({ tokens: group, text, orpChar: orpIndex(text) });
+    }
+  }
+
+  // === TIMING ===
+  function getDelay(token) {
+    let delay = 60000 / config.wpm;
+    if (token.punct === 'sentence') delay *= 2;
+    else if (token.punct === 'pause') delay *= 1.5;
+    if (config.adaptiveSlowdown && token.isLong) delay *= 1.2;
+    if (config.rampUp && (Date.now() - startTime) < 10000) {
+      delay *= 1.2 - 0.2 * ((Date.now() - startTime) / 10000);
+    }
+    return delay;
+  }
+
+  // === DISPLAY ===
+  function renderWord() {
+    const ci = Math.floor(currentIndex / config.chunkSize);
+    if (ci >= chunks.length) { pause(); return; }
+    const chunk = chunks[ci];
+    const text = chunk.text;
+    const p = chunk.orpChar;
+    orpBefore.textContent = text.slice(0, p);
+    orpPivot.textContent = text[p] || '';
+    orpAfter.textContent = text.slice(p + 1);
+
+    // Update progress
+    const pct = tokens.length > 0 ? (currentIndex / tokens.length) * 100 : 0;
+    progressFill.style.width = pct + '%';
+    scrubber.value = currentIndex;
+
+    // Stats
+    const left = Math.max(0, tokens.length - currentIndex);
+    const secs = config.wpm > 0 ? Math.ceil((left / config.wpm) * 60) : 0;
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    readingStats.textContent = currentIndex + ' / ' + tokens.length + ' \u00B7 ' + m + ':' + String(s).padStart(2,'0');
+  }
+
+  function updateWpmDisplay() {
+    wpmVal.textContent = config.wpm;
+    wpmLabel.textContent = config.wpm + ' WPM';
+    wpmSlider.value = config.wpm;
+    $('#s-wpm').value = config.wpm;
+    $('#s-wpm-val').textContent = config.wpm;
+  }
+
+  // === PLAYBACK ===
+  function scheduleNext() {
+    if (!playing || currentIndex >= tokens.length) { pause(); return; }
+    const token = tokens[currentIndex];
+    const delay = getDelay(token);
+    timer = setTimeout(() => {
+      currentIndex = Math.min(currentIndex + config.chunkSize, tokens.length);
+      renderWord();
+      if (playing) scheduleNext();
+    }, delay);
+  }
+
+  function play() {
+    if (tokens.length === 0) return;
+    if (currentIndex >= tokens.length) currentIndex = 0;
+    buildChunks();
+    playing = true;
+    startTime = Date.now();
+    playBtn.innerHTML = '&#9646;&#9646;';
+    renderWord();
+    scheduleNext();
+  }
+
+  function pause() {
+    playing = false;
+    if (timer) { clearTimeout(timer); timer = null; }
+    playBtn.innerHTML = '&#9654;';
+  }
+
+  function togglePlay() { playing ? pause() : play(); }
+
+  function rewind() {
+    const back = Math.round((config.wpm / 60) * 5);
+    currentIndex = Math.max(0, currentIndex - back);
+    buildChunks();
+    renderWord();
+    if (playing) { clearTimeout(timer); scheduleNext(); }
+  }
+
+  function skipSentence() {
+    if (tokens.length === 0) return;
+    const cur = tokens[Math.min(currentIndex, tokens.length - 1)].sentenceIndex;
+    while (currentIndex < tokens.length && tokens[currentIndex].sentenceIndex === cur) currentIndex++;
+    if (currentIndex >= tokens.length) currentIndex = tokens.length - 1;
+    buildChunks();
+    renderWord();
+    if (playing) { clearTimeout(timer); scheduleNext(); }
+  }
+
+  function setWpm(v) {
+    config.wpm = Math.max(100, Math.min(1000, v));
+    updateWpmDisplay();
+  }
+
+  // === LOAD TEXT ===
+  function loadText(text, title) {
+    tokens = tokenize(text);
+    currentIndex = 0;
+    buildChunks();
+    scrubber.max = tokens.length;
+    scrubber.value = 0;
+    renderWord();
+    showView('reader');
+  }
+
+  // === VIEWS ===
+  function showView(v) {
+    inputView.classList.toggle('active', v === 'input');
+    readerView.classList.toggle('active', v === 'reader');
+  }
+
+  // === APPLY CONFIG ===
+  function applyConfig() {
+    orpGrid.style.fontFamily = config.fontFamily;
+    orpGrid.style.fontSize = config.fontSize + 'px';
+    orpPivot.style.color = config.orpColor;
+    marquee.style.backgroundColor = 'rgba(10,10,18,' + config.panelOpacity + ')';
+
+    // Background
+    if (config.bgMode === 'solid') {
+      bgSolid.style.background = config.bgColor;
+      bgSolid.style.display = 'block';
+      const existingYt = document.getElementById('bg-youtube');
+      if (existingYt) existingYt.remove();
+    } else if (config.bgMode === 'youtube') {
+      bgSolid.style.display = 'none';
+      loadYouTube(config.ytUrl);
+    }
+
+    bgOverlay.style.backgroundColor = '#000';
+    bgOverlay.style.opacity = config.overlayOpacity;
+
+    updateWpmDisplay();
+  }
+
+  function loadYouTube(url) {
+    const existing = document.getElementById('bg-youtube');
+    if (existing) existing.remove();
+    const id = extractYtId(url);
+    if (!id) return;
+    const iframe = document.createElement('iframe');
+    iframe.id = 'bg-youtube';
+    iframe.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&mute=1&loop=1&playlist=' + id + '&controls=0&showinfo=0&modestbranding=1&rel=0&disablekb=1&iv_load_policy=3&enablejsapi=1';
+    iframe.allow = 'autoplay; encrypted-media';
+    iframe.allowFullscreen = true;
+    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;pointer-events:none;transform:scale(1.2);transform-origin:center;';
+    $('#bg-layer').appendChild(iframe);
+  }
+
+  function extractYtId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/) || url.match(/^([a-zA-Z0-9_-]{11})$/);
+    return m ? m[1] : null;
+  }
+
+  // === APPLY PRESET ===
+  function applyPreset(preset) {
+    config.wpm = preset.wpm || 300;
+    config.fontFamily = FONT_MAP[preset.font] || 'Georgia, serif';
+    config.fontSize = preset.fontSize || 40;
+    config.orpColor = preset.orpColor || '#e74c3c';
+    config.bgMode = preset.bg || 'solid';
+    config.bgColor = preset.color || '#1a1a2e';
+    config.ytUrl = preset.ytUrl || '';
+    config.overlayOpacity = preset.overlay !== undefined ? preset.overlay : 0.2;
+    config.rampUp = !!preset.rampUp;
+
+    // Sync settings UI
+    $('#s-font').value = config.fontFamily;
+    $('#s-fontsize').value = config.fontSize;
+    $('#s-fontsize-val').textContent = config.fontSize + 'px';
+    $('#s-orpcolor').value = config.orpColor;
+    $('#s-bgcolor').value = config.bgColor;
+    $('#s-yturl').value = config.ytUrl;
+    $('#s-overlay').value = config.overlayOpacity;
+    $('#s-overlay-val').textContent = config.overlayOpacity.toFixed(2);
+    $('#s-panel-opacity').value = config.panelOpacity;
+    $('#s-panel-opacity-val').textContent = config.panelOpacity.toFixed(2);
+    $('#s-slowdown').classList.toggle('on', config.adaptiveSlowdown);
+    $('#s-rampup').classList.toggle('on', config.rampUp);
+
+    // BG mode UI
+    $$('#bg-mode-group .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === config.bgMode));
+    $('#bg-color-row').style.display = config.bgMode === 'solid' ? 'flex' : 'none';
+    $('#yt-url-row').style.display = config.bgMode === 'youtube' ? 'flex' : 'none';
+
+    // Preset chips
+    $$('.preset-chip').forEach(c => c.classList.toggle('active', c.dataset.id === preset.id));
+
+    applyConfig();
+  }
+
+  // === WELCOME TEXT ===
+  function getWelcomeText() {
+    return "Welcome to SensoryReader — Your Personal Speed Reading Environment. " +
+      "This is the standalone touch-friendly version. It works in any browser with no server needed. " +
+      "This tool uses Optimal Recognition Point alignment to help you read faster and more efficiently. " +
+      "Each word is positioned so your eye naturally locks onto the ideal focal point, eliminating the need for your eyes to scan across text. " +
+      "Press the play button or tap the text display to begin reading. " +
+      "You can control your reading speed using the WPM slider or the plus and minus buttons. " +
+      "Start slow at around 200 words per minute and gradually increase as you get comfortable. Most people can reach 400 to 600 words per minute with practice. " +
+      "Tap the gear icon to open the settings drawer. It slides up from the bottom and you can swipe down to close it. " +
+      "In settings you can change the font, font size, ORP highlight color, chunk size, and toggle adaptive slowdown and ramp-up mode. " +
+      "The chunk size controls how many words display at once. Try one word for maximum focus or two or three words for faster reading at high WPM. " +
+      "Five presets are included. Welcome is what you are reading now with a YouTube background. Focus provides calm reading at 300 WPM. Sprint pushes to 600 WPM. Cinematic offers a dramatic experience with video and bold text. Night mode uses warm amber tones. " +
+      "For backgrounds you can choose a solid color or paste a YouTube URL for an ambient video. The overlay opacity slider controls how much the background shows through. " +
+      "To load your own content tap the back arrow to return to the library. You can paste text directly, upload a text file using the drag and drop zone, or choose from the sample library of classic texts from Project Gutenberg. " +
+      "The full React version at localhost 5173 includes additional features like PDF support, image backgrounds, draggable and resizable text marquee, panel shapes, preset management with rename save duplicate export and import, and more typography options. " +
+      "Speed reading is a skill that improves with practice. Start with familiar material at a comfortable pace. As your brain adapts to the ORP method you will find yourself naturally increasing speed while maintaining comprehension. " +
+      "Thank you for trying SensoryReader. Enjoy reading at the speed of thought.";
+  }
+
+  // === FETCH GUTENBERG ===
+  async function fetchGutenberg(id) {
+    const url = 'https://www.gutenberg.org/cache/epub/' + id + '/pg' + id + '.txt';
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      let text = await res.text();
+      const si = text.indexOf('*** START OF');
+      const ei = text.indexOf('*** END OF');
+      if (si !== -1 && ei !== -1) {
+        text = text.slice(text.indexOf('\n', si) + 1, ei);
+      }
+      return text.trim();
+    } catch(e) {
+      // Try CORS proxy fallback
+      try {
+        const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+        if (!res.ok) throw new Error();
+        let text = await res.text();
+        const si = text.indexOf('*** START OF');
+        const ei = text.indexOf('*** END OF');
+        if (si !== -1 && ei !== -1) text = text.slice(text.indexOf('\n', si) + 1, ei);
+        return text.trim();
+      } catch { return null; }
+    }
+  }
+
+  // === INIT ===
+  function init() {
+    // Build sample grid
+    SAMPLES.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'sample-card';
+      btn.innerHTML = '<span class="title">' + s.title + '</span><span class="author">' + s.author + '</span>';
+      btn.addEventListener('click', async () => {
+        if (s.text) { loadText(s.text, s.title); applyPreset(PRESETS[0]); return; }
+        btn.style.opacity = '0.5';
+        btn.disabled = true;
+        try {
+          const text = await fetchGutenberg(s.gutenbergId);
+          if (text) loadText(text, s.title);
+          else alert('Could not fetch text. Try pasting it instead.');
+        } finally { btn.style.opacity = '1'; btn.disabled = false; }
+      });
+      sampleGrid.appendChild(btn);
+    });
+
+    // Build preset chips
+    PRESETS.forEach(p => {
+      const chip = document.createElement('button');
+      chip.className = 'preset-chip';
+      chip.dataset.id = p.id;
+      chip.textContent = p.name;
+      chip.addEventListener('click', () => applyPreset(p));
+      $('#preset-chips').appendChild(chip);
+    });
+
+    // Paste input
+    pasteInput.addEventListener('input', () => { loadPasteBtn.disabled = !pasteInput.value.trim(); });
+    loadPasteBtn.addEventListener('click', () => {
+      if (pasteInput.value.trim()) { loadText(pasteInput.value.trim(), 'Pasted text'); pasteInput.value = ''; }
+    });
+
+    // File upload
+    fileDrop.addEventListener('click', () => fileInput.click());
+    fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.classList.add('dragover'); });
+    fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('dragover'));
+    fileDrop.addEventListener('drop', e => {
+      e.preventDefault(); fileDrop.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+    // Transport
+    playBtn.addEventListener('click', togglePlay);
+    $('#rewind-btn').addEventListener('click', rewind);
+    $('#skip-btn').addEventListener('click', skipSentence);
+    $('#back-btn').addEventListener('click', () => { pause(); showView('input'); });
+
+    // Scrubber
+    scrubber.addEventListener('input', () => {
+      currentIndex = parseInt(scrubber.value);
+      buildChunks(); renderWord();
+      if (playing) { clearTimeout(timer); scheduleNext(); }
+    });
+
+    // WPM controls
+    $('#wpm-down').addEventListener('click', () => setWpm(config.wpm - 25));
+    $('#wpm-up').addEventListener('click', () => setWpm(config.wpm + 25));
+    wpmSlider.addEventListener('input', () => setWpm(parseInt(wpmSlider.value)));
+
+    // Settings drawer
+    $('#settings-btn').addEventListener('click', openSettings);
+    settingsOverlay.addEventListener('click', closeSettings);
+
+    // Swipe down to close drawer
+    let touchStartY = 0;
+    settingsDrawer.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; });
+    settingsDrawer.addEventListener('touchmove', e => {
+      if (e.touches[0].clientY - touchStartY > 60 && settingsDrawer.scrollTop <= 0) closeSettings();
+    });
+
+    // Settings: WPM
+    $('#s-wpm').addEventListener('input', function() {
+      setWpm(parseInt(this.value));
+      $('#s-wpm-val').textContent = config.wpm;
+    });
+
+    // Settings: Chunk size
+    $$('#chunk-group .seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        config.chunkSize = parseInt(btn.dataset.val);
+        $$('#chunk-group .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+        buildChunks(); renderWord();
+      });
+    });
+
+    // Settings: Toggles
+    $('#s-slowdown').addEventListener('click', function() { config.adaptiveSlowdown = !config.adaptiveSlowdown; this.classList.toggle('on'); });
+    $('#s-rampup').addEventListener('click', function() { config.rampUp = !config.rampUp; this.classList.toggle('on'); });
+
+    // Settings: Font
+    $('#s-font').addEventListener('change', function() { config.fontFamily = this.value; applyConfig(); });
+    $('#s-fontsize').addEventListener('input', function() {
+      config.fontSize = parseInt(this.value);
+      $('#s-fontsize-val').textContent = config.fontSize + 'px';
+      applyConfig();
+    });
+    $('#s-orpcolor').addEventListener('input', function() { config.orpColor = this.value; applyConfig(); });
+
+    // Settings: Background
+    $$('#bg-mode-group .seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        config.bgMode = btn.dataset.val;
+        $$('#bg-mode-group .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+        $('#bg-color-row').style.display = config.bgMode === 'solid' ? 'flex' : 'none';
+        $('#yt-url-row').style.display = config.bgMode === 'youtube' ? 'flex' : 'none';
+        applyConfig();
+      });
+    });
+    $('#s-bgcolor').addEventListener('input', function() { config.bgColor = this.value; applyConfig(); });
+    $('#s-yturl').addEventListener('change', function() { config.ytUrl = this.value; applyConfig(); });
+    $('#s-overlay').addEventListener('input', function() {
+      config.overlayOpacity = parseFloat(this.value);
+      $('#s-overlay-val').textContent = config.overlayOpacity.toFixed(2);
+      applyConfig();
+    });
+    $('#s-panel-opacity').addEventListener('input', function() {
+      config.panelOpacity = parseFloat(this.value);
+      $('#s-panel-opacity-val').textContent = config.panelOpacity.toFixed(2);
+      applyConfig();
+    });
+
+    // Keyboard
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      switch(e.code) {
+        case 'Space': e.preventDefault(); togglePlay(); break;
+        case 'ArrowLeft': e.preventDefault(); rewind(); break;
+        case 'ArrowRight': e.preventDefault(); skipSentence(); break;
+        case 'ArrowUp': e.preventDefault(); setWpm(config.wpm + 25); break;
+        case 'ArrowDown': e.preventDefault(); setWpm(config.wpm - 25); break;
+      }
+    });
+
+    // Tap on marquee to play/pause (touch friendly)
+    marquee.addEventListener('click', togglePlay);
+
+    // Load welcome by default
+    applyPreset(PRESETS[0]);
+  }
+
+  function handleFile(file) {
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      alert('PDF support requires the full React app. Please use TXT or paste text.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => { if (reader.result) loadText(reader.result, file.name); };
+    reader.readAsText(file);
+  }
+
+  function openSettings() {
+    settingsOverlay.classList.add('active');
+    settingsDrawer.classList.add('active');
+  }
+
+  function closeSettings() {
+    settingsOverlay.classList.remove('active');
+    settingsDrawer.classList.remove('active');
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
