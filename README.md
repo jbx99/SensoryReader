@@ -14,11 +14,11 @@
   <img src="content/Screenshot.png" alt="SensoryReader screenshot" width="900" />
 </p>
 
-https://github.com/jbx99/SensoryReader/raw/main/content/sensoryreader-clip.mp4
+<p align="center">
+  <img src="content/sensoryreader-clip.gif" alt="SensoryReader demo" width="720" />
+</p>
 
-[**▶ Watch the demo clip**](content/sensoryreader-clip.mp4) — see the ORP-aligned word display, draggable marquee, YouTube ambient background, and live playback controls in action.
-
-> **Tip:** GitHub embeds videos automatically when you drag-and-drop them into the web editor. If the inline video above doesn't play, click the link to download it, then drag it into a fresh edit of this README on GitHub.com — the URL will be replaced with an embed that streams directly from GitHub's CDN.
+> See the ORP-aligned word display, draggable marquee, YouTube ambient background, and live playback controls in action.
 
 ---
 
