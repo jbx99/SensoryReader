@@ -14,11 +14,7 @@
   <img src="content/Screenshot.png" alt="SensoryReader screenshot" width="900" />
 </p>
 
-<p align="center">
-  <img src="content/sensoryreader-clip.gif" alt="SensoryReader demo" width="720" />
-</p>
-
-> See the ORP-aligned word display, draggable marquee, YouTube ambient background, and live playback controls in action.
+> ORP-aligned word display, draggable marquee, YouTube ambient background, customizable settings panel, and live playback controls.
 
 ---
 
