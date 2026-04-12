@@ -13,6 +13,7 @@ export interface SampleText {
  */
 export const SAMPLE_LIBRARY: SampleText[] = [
   { id: 'welcome', title: 'Welcome Guide', author: 'SensoryReader', gutenbergId: null, url: 'builtin:welcome' },
+  { id: 'study-demo', title: 'Study Demo', author: 'Solar System (5 quizzes)', gutenbergId: null, url: 'builtin:study' },
   { id: 'meditations', title: 'Meditations', author: 'Marcus Aurelius', gutenbergId: 2680, url: 'https://www.gutenberg.org/ebooks/2680' },
   { id: 'enchiridion', title: 'Enchiridion', author: 'Epictetus', gutenbergId: null, url: 'https://classics.mit.edu/Epictetus/epicench.html' },
   { id: 'letters-stoic', title: 'Letters from a Stoic', author: 'Seneca', gutenbergId: 3794, url: 'https://www.gutenberg.org/ebooks/3794' },
@@ -34,6 +35,10 @@ export async function fetchSampleText(sample: SampleText): Promise<string | null
   if (sample.url === 'builtin:welcome') {
     const { WELCOME_TEXT } = await import('./welcomeText');
     return WELCOME_TEXT;
+  }
+  if (sample.url === 'builtin:study') {
+    const { STUDY_DEMO_TEXT } = await import('./studyDemoText');
+    return STUDY_DEMO_TEXT;
   }
 
   if (!sample.gutenbergId) {

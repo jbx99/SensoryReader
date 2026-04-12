@@ -59,6 +59,7 @@ const BASE_CONFIG: ReaderConfig = {
       widthMode: 'fixed',
       fixedWidth: 900,
     },
+    testingEnabled: false,
   },
 };
 
@@ -219,6 +220,38 @@ export const DEFAULT_PRESETS: Preset[] = [
         solidColor: '#1c1410',
         overlayColor: '#2c1f14',
         overlayOpacity: 0.9,
+      },
+    },
+  },
+  {
+    id: 'study',
+    name: 'Study',
+    builtIn: true,
+    config: {
+      ...BASE_CONFIG,
+      speed: { ...BASE_CONFIG.speed, wpm: 250, adaptiveSlowdown: true, rampUp: false },
+      typography: {
+        ...BASE_CONFIG.typography,
+        fontFamily: '"Atkinson Hyperlegible", -apple-system, sans-serif',
+        fontSize: 46,
+        fontWeight: 'medium',
+        orpHighlightColor: '#3498db',
+      },
+      background: {
+        ...BASE_CONFIG.background,
+        mode: 'solid',
+        solidColor: '#0d1b2a',
+        overlayOpacity: 0.5,
+      },
+      display: {
+        ...BASE_CONFIG.display,
+        panelShape: 'rectangle',
+        textBackground: {
+          ...BASE_CONFIG.display.textBackground,
+          color: '#0a1520',
+          opacity: 0.9,
+        },
+        testingEnabled: true,
       },
     },
   },

@@ -1,5 +1,6 @@
 import type { Token, Chunk, PunctuationType } from '../types';
 import { computeOrpIndex, computeChunkOrpIndex } from './orp';
+import { isQuizPlaceholder } from './testParser';
 
 const PUNCTUATION_MAP: Record<string, PunctuationType> = {
   ',': 'comma',
@@ -39,14 +40,16 @@ export function tokenize(text: string): Token[] {
     const word = words[i];
     const prevWord = i > 0 ? words[i - 1] : null;
     const punctuation = detectPunctuation(word);
+    const quizId = isQuizPlaceholder(word);
 
     tokens.push({
-      word,
+      word: quizId !== null ? '' : word, // quiz placeholders display as nothing
       index: i,
       sentenceIndex,
-      orpIndex: computeOrpIndex(word),
-      isEmphasis: isEmphasisWord(word, prevWord),
+      orpIndex: quizId !== null ? 0 : computeOrpIndex(word),
+      isEmphasis: quizId !== null ? false : isEmphasisWord(word, prevWord),
       punctuationAfter: punctuation,
+      ...(quizId !== null ? { quizId } : {}),
     });
 
     if (punctuation === 'period' || punctuation === 'question' || punctuation === 'exclamation') {

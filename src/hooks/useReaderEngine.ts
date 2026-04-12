@@ -23,7 +23,8 @@ export interface ReaderEngine {
 
 export function useReaderEngine(
   config: ReaderConfig,
-  onConfigChange?: (config: ReaderConfig) => void
+  onConfigChange?: (config: ReaderConfig) => void,
+  onQuizReached?: (quizId: number) => void
 ): ReaderEngine {
   const tokensRef = useRef<Token[]>([]);
   const chunksRef = useRef<Chunk[]>([]);
@@ -33,8 +34,10 @@ export function useReaderEngine(
   const startTimeRef = useRef(0);
   const configRef = useRef(config);
   const onConfigChangeRef = useRef(onConfigChange);
+  const onQuizReachedRef = useRef(onQuizReached);
   configRef.current = config;
   onConfigChangeRef.current = onConfigChange;
+  onQuizReachedRef.current = onQuizReached;
 
   // These trigger re-renders
   const [currentChunk, setCurrentChunk] = useState<Chunk | null>(null);
@@ -62,14 +65,20 @@ export function useReaderEngine(
     const chunkSize = configRef.current.speed.chunkSize;
     const chunkIndex = Math.floor(indexRef.current / chunkSize);
     if (chunkIndex < chunks.length) {
-      setCurrentChunk(chunks[chunkIndex]);
-      setCurrentIndex(indexRef.current);
+      const chunk = chunks[chunkIndex];
+      // Skip displaying chunks that contain only quiz placeholders
+      const hasNonQuiz = chunk.tokens.some((t) => t.quizId === undefined);
+      if (hasNonQuiz) {
+        setCurrentChunk(chunk);
+        setCurrentIndex(indexRef.current);
+      }
     }
   }, []);
 
   const scheduleNext = useCallback(() => {
     const allTokens = tokensRef.current;
     const cfg = configRef.current.speed;
+    const testingOn = configRef.current.display.testingEnabled;
 
     if (indexRef.current >= allTokens.length) {
       statusRef.current = 'paused';
@@ -77,7 +86,30 @@ export function useReaderEngine(
       return;
     }
 
+    // Skip past quiz placeholders if testing is disabled
+    if (!testingOn) {
+      while (indexRef.current < allTokens.length && allTokens[indexRef.current].quizId !== undefined) {
+        indexRef.current++;
+      }
+      if (indexRef.current >= allTokens.length) {
+        statusRef.current = 'paused';
+        setStatus('paused');
+        return;
+      }
+    }
+
     const token = allTokens[indexRef.current];
+
+    // If testing is enabled and we hit a quiz token, pause and fire callback
+    if (testingOn && token.quizId !== undefined) {
+      statusRef.current = 'paused';
+      setStatus('paused');
+      onQuizReachedRef.current?.(token.quizId);
+      // Advance past the quiz token so resume continues from the next word
+      indexRef.current++;
+      return;
+    }
+
     const elapsed = Date.now() - startTimeRef.current;
     const delay = adjustedDelay(token, cfg, elapsed);
 
