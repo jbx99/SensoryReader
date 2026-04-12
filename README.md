@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Read at the speed of thought</strong><br/>
-  <em>A modern speed reading tool with Optimal Recognition Point alignment</em>
+  <strong>Read at the speed of thought &middot; Test what you remember</strong><br/>
+  <em>Speed reading with Optimal Recognition Point alignment and inline comprehension quizzes</em>
 </p>
 
 <p align="center">
@@ -39,6 +39,38 @@
 ## What is it?
 
 **SensoryReader** flashes one word at a time in a fixed focal zone, with the **Optimal Recognition Point** (the slight left-of-center pivot character) highlighted in color. Because the pivot always lands at the same screen pixel, your eyes never need to move -- they just *recognize*. The result is faster reading with less fatigue.
+
+### Active reading with inline quizzes
+
+Reading fast is only useful if you remember what you read. SensoryReader supports **interactive comprehension quizzes** that you embed directly inside your text using a simple inline marker:
+
+```
+The solar system formed 4.6 billion years ago. [?How old is the solar system??2.5?4.6?6.8?10.2?2?]
+```
+
+When the reader hits a marker, **playback pauses**, a multiple-choice quiz pops up, and resumes automatically after you answer. The progress bar shows tick marks for every quiz so you can see them coming -- the next upcoming one pulses yellow.
+
+<p align="center">
+  <img src="content/quiz_question.png" alt="Quiz question popup" width="720" />
+</p>
+
+<p align="center"><sub>
+  <strong>Quiz pop-up.</strong> Multiple-choice question with green/red feedback, auto-dismissing 1.5s after you answer.
+</sub></p>
+
+Toggle testing on or off with one click in the toolbar, or use the **built-in editor** (pencil icon) to add and edit quizzes via a friendly form &mdash; no need to type the marker syntax by hand.
+
+<p align="center">
+  <img src="content/quiz_edit.png" alt="Edit text and quiz modal" width="720" />
+</p>
+
+<p align="center"><sub>
+  <strong>Built-in editor.</strong> Edit the loaded text and manage its quizzes through a form. Add or remove options, mark the correct answer with a radio button, delete or append questions, then save to reload.
+</sub></p>
+
+Try the **Study preset** with the included Study Demo for a 5-question solar-system walkthrough.
+
+### Playful by design
 
 It also happens to be a pretty playful environment to read in. Drop a YouTube video in the background, drag the text panel where you want it, pick a star-shaped marquee if you feel like it, and tune everything from chunk size to backdrop blur.
 
@@ -101,8 +133,9 @@ npm run preview    # serve the built version locally
 - **Paste** any text directly
 - **Drag & drop** PDF, TXT, or MD files (PDF parsing preserves line structure)
 - **URL fetch** with Vite dev proxy for CORS handling
-- **Sample library** &mdash; 10 classic Project Gutenberg texts (Meditations, Letters from a Stoic, The Prince, etc.) plus a built-in Welcome guide
+- **Sample library** &mdash; 10 classic Project Gutenberg texts (Meditations, Letters from a Stoic, The Prince, etc.) plus a built-in Welcome guide and a Study Demo with embedded quizzes
 - **Recent history** &mdash; resume saved positions with cached text
+- **Built-in editor** &mdash; click the pencil icon in the toolbar to edit any loaded text or its embedded quizzes inline
 
 ### Display & layout
 
@@ -151,6 +184,29 @@ The panel itself has an **opacity slider** and an **auto-hide** toggle that clos
 
 Built-in screen recorder captures **15s, 30s, or 60s** clips of your reading session with a 3-2-1 countdown, pulsing red indicator, and one-click download. Outputs MP4 (H.264) where supported, WebM otherwise -- both formats embed natively in GitHub READMEs and social media posts.
 
+### Interactive testing (comprehension quizzes)
+
+Embed pop-quiz questions directly inside your text using a simple inline marker. The reader pauses when it reaches a marker, displays a multiple-choice modal, reveals the correct answer with green/red feedback, and resumes automatically. (See screenshots in the [intro section above](#active-reading-with-inline-quizzes).)
+
+**Marker format:**
+
+```
+[?Question text?Option A?Option B?Option C?2?]
+```
+
+The trailing number (1-based) is the index of the correct answer. 2-4 options supported.
+
+**Features:**
+
+- **Toggle on/off** &mdash; graduation cap button in the toolbar, or the Visual settings tab
+- **Visual cue on the progress bar** &mdash; small tick marks show where every quiz lives in the document. The next upcoming quiz pulses yellow so you know one is approaching. Passed quizzes turn green.
+- **Same cue on the playback scrubber** &mdash; quiz tick marks appear on both the top progress bar and the bottom transport scrubber
+- **Skip mode** &mdash; when testing is disabled, the reader silently skips over markers as if they weren't there
+- **Built-in editor** &mdash; the pencil icon in the toolbar opens a modal where you can edit text and manage quizzes via a friendly form (no need to type the marker syntax by hand). Add, delete, edit options, mark the correct answer, and save back to the loaded document.
+- **Auto-dismiss** &mdash; the quiz modal fades out 1.5s after you answer, then playback resumes
+
+**Try it:** load the **Study Demo** sample (5 questions about the solar system) from the Library tab and switch to the **Study preset** for the full experience.
+
 ### Persistence
 
 Saved to `localStorage`:
@@ -164,7 +220,7 @@ Saved to `localStorage`:
 
 ## Presets
 
-Seven built-in presets, each fully customizable:
+Eight built-in presets, each fully customizable:
 
 | Preset | WPM | Vibe |
 |---|---|---|
@@ -174,6 +230,7 @@ Seven built-in presets, each fully customizable:
 | **Cinematic** | 250 | Bold 64px text, video background, pill panel |
 | **Dyslexia-friendly** | 260 | OpenDyslexic, wide letter spacing, green highlight |
 | **Night Mode** | 300 | Warm amber tones, dark background |
+| **Study** | 250 | Atkinson Hyperlegible, blue ORP, dark teal background, **interactive testing on** |
 | **Custom** | 300 | Blank slate to build your own |
 
 You can **rename** any preset (built-in or custom), **save** current settings over a custom preset, **duplicate**, **export as JSON**, **import** shared presets, and **delete** custom ones.
@@ -245,7 +302,8 @@ SensoryReader/
 │  ├─ engine/
 │  │  ├─ orp.ts                 -- ORP pivot calculation (pure)
 │  │  ├─ tokenizer.ts           -- word/sentence/emphasis tokens
-│  │  └─ timing.ts              -- delay math (pure)
+│  │  ├─ timing.ts              -- delay math (pure)
+│  │  └─ testParser.ts          -- inline quiz marker parser
 │  ├─ hooks/
 │  │  ├─ useReaderEngine.ts     -- core playback loop (ref-based timer)
 │  │  ├─ useScreenRecorder.ts   -- MediaRecorder wrapper
@@ -263,7 +321,8 @@ SensoryReader/
 │  │  └─ recentHistory.ts       -- history + text cache
 │  ├─ data/
 │  │  ├─ sampleLibrary.ts       -- Gutenberg sample manifest
-│  │  └─ welcomeText.ts         -- built-in tutorial text
+│  │  ├─ welcomeText.ts         -- built-in tutorial text
+│  │  └─ studyDemoText.ts       -- 5-question solar system demo
 │  ├─ components/
 │  │  ├─ App.tsx
 │  │  ├─ ReaderDisplay.tsx      -- ORP-aligned word rendering
@@ -273,7 +332,9 @@ SensoryReader/
 │  │  ├─ InputPanel.tsx         -- library tab content
 │  │  ├─ ProgressIndicator.tsx
 │  │  ├─ DraggableBox.tsx       -- drag/resize wrapper
-│  │  └─ RecordButton.tsx       -- screen recorder UI
+│  │  ├─ RecordButton.tsx       -- screen recorder UI
+│  │  ├─ QuizModal.tsx          -- pop quiz multiple-choice modal
+│  │  └─ EditTextModal.tsx      -- inline text and quiz editor
 │  ├─ types/index.ts
 │  └─ styles/index.css
 └─ content/

@@ -1,4 +1,4 @@
-import type { PlaybackStatus } from '../types';
+import type { PlaybackStatus, TestQuestion } from '../types';
 
 interface PlaybackControlsProps {
   status: PlaybackStatus;
@@ -11,6 +11,8 @@ interface PlaybackControlsProps {
   onSeek: (index: number) => void;
   onNudgeWpm: (delta: number) => void;
   onSetWpm: (wpm: number) => void;
+  tests?: TestQuestion[];
+  testingEnabled?: boolean;
 }
 
 function formatTimeRemaining(wordsLeft: number, wpm: number): string {
@@ -32,9 +34,13 @@ export function PlaybackControls({
   onSeek,
   onNudgeWpm,
   onSetWpm,
+  tests = [],
+  testingEnabled = false,
 }: PlaybackControlsProps) {
   const wordsLeft = Math.max(0, totalTokens - currentIndex);
   const timeRemaining = formatTimeRemaining(wordsLeft, effectiveWpm);
+  const showTests = testingEnabled && tests.length > 0;
+  const nextQuiz = showTests ? tests.find((t) => t.position > currentIndex) : null;
 
   return (
     <div className="playback-controls">
@@ -64,14 +70,24 @@ export function PlaybackControls({
         </button>
       </div>
 
-      <input
-        type="range"
-        className="playback-scrubber"
-        min={0}
-        max={totalTokens}
-        value={currentIndex}
-        onChange={(e) => onSeek(Number(e.target.value))}
-      />
+      <div className="playback-scrubber-wrap">
+        <input
+          type="range"
+          className="playback-scrubber"
+          min={0}
+          max={totalTokens}
+          value={currentIndex}
+          onChange={(e) => onSeek(Number(e.target.value))}
+        />
+        {showTests && tests.map((t) => (
+          <div
+            key={t.id}
+            className={`scrubber-quiz ${nextQuiz && t.id === nextQuiz.id ? 'scrubber-quiz--next' : ''} ${t.position <= currentIndex ? 'scrubber-quiz--passed' : ''}`}
+            style={{ left: `${(t.position / Math.max(1, totalTokens)) * 100}%` }}
+            title={t.question}
+          />
+        ))}
+      </div>
 
       <div className="playback-controls__info">
         <div className="playback-wpm">

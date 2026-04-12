@@ -28,6 +28,10 @@ SensoryReader also includes a standalone version for tablets and touch devices. 
 
 Speed reading is a skill that improves with practice. Start with familiar material at a comfortable pace. As your brain adapts to the ORP method you will find yourself naturally increasing speed while maintaining comprehension. Many readers report significant improvement within just a few sessions.
 
+SensoryReader also supports interactive testing for active reading and comprehension practice. Switch to the Study preset to enable it, or toggle Interactive Testing in the Visual settings tab. Inline test markers in the text trigger pop quizzes that pause playback. Answer the question and reading resumes automatically. [?Which preset enables interactive testing??Focus?Sprint?Study?Cinematic?3?]
+
+To add your own quizzes use this format in your text. Open square bracket question mark, the question, question mark, then each option separated by question marks, then the correct option number, question mark, close bracket. [?What is the maximum WPM in SensoryReader??500?800?1000?1500?3?] When testing is disabled the reader simply skips over these markers without showing them.
+
 Thank you for trying SensoryReader. Load your own text from the Library tab and enjoy the experience of reading at the speed of thought.`;
 
 export const WELCOME_TITLE = 'Welcome to SensoryReader';

@@ -7,6 +7,15 @@ export interface Token {
   orpIndex: number;
   isEmphasis: boolean;
   punctuationAfter: PunctuationType | null;
+  quizId?: number;  // if this token is a quiz placeholder, its quiz ID
+}
+
+export interface TestQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  position: number;
 }
 
 export type PunctuationType =
@@ -86,6 +95,7 @@ export interface DisplayConfig {
   overlayPosition: OverlayPosition;
   textOpacity: number;       // 0-1
   textBackground: TextBackgroundConfig;
+  testingEnabled: boolean;   // pop quiz on test markers
 }
 
 export interface ReaderConfig {

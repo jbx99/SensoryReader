@@ -608,6 +608,16 @@ export function ConfigPanel({
               <span>Reading guide line</span>
             </label>
 
+            <label className="ctrl-toggle">
+              <input
+                type="checkbox"
+                checked={config.display.testingEnabled}
+                onChange={(e) => update('display', { testingEnabled: e.target.checked })}
+              />
+              <span>Interactive testing</span>
+            </label>
+            <span className="ctrl-hint">Pop quiz on inline test markers like <code>[?Q?A?B?C?2?]</code></span>
+
             <hr className="ctrl-divider" />
 
             <div className="ctrl-group">
