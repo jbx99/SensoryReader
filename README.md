@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="public/logo.svg" alt="SensoryReader" width="480" />
+  <img src="public/logo.png" alt="SensoryReader" width="480" />
 </p>
 
 <p align="center">
   <strong>Read at the speed of thought &middot; Test what you remember</strong><br/>
-  <em>Speed reading with Optimal Recognition Point alignment and inline comprehension quizzes</em>
+  <em>Speed reading with ORP alignment, inline comprehension quizzes, and webcam eye tracking</em>
 </p>
 
 <p align="center">
@@ -18,6 +18,7 @@
 <p align="center">
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#features">Features</a> &middot;
+  <a href="#eye-tracking-gaze-detection">Eye Tracking</a> &middot;
   <a href="#presets">Presets</a> &middot;
   <a href="#keyboard-shortcuts">Shortcuts</a> &middot;
   <a href="#standalone-version">Standalone</a> &middot;
@@ -31,7 +32,7 @@
 </p>
 
 <p align="center"><sub>
-  ORP-aligned word display &middot; draggable marquee &middot; YouTube ambient background &middot; customizable settings panel
+  ORP-aligned word display &middot; draggable marquee &middot; YouTube ambient background &middot; webcam eye tracking &middot; customizable settings panel
 </sub></p>
 
 ---
@@ -39,6 +40,10 @@
 ## What is it?
 
 **SensoryReader** flashes one word at a time in a fixed focal zone, with the **Optimal Recognition Point** (the slight left-of-center pivot character) highlighted in color. Because the pivot always lands at the same screen pixel, your eyes never need to move -- they just *recognize*. The result is faster reading with less fatigue.
+
+### Eye tracking that keeps you honest
+
+Enable the **webcam eye tracker** and SensoryReader will **pause playback when you look away** and resume when you look back. It uses MediaPipe's face landmark model to track your iris position in real time &mdash; no special hardware, no calibration required (though optional 5-point calibration improves accuracy). A live debug panel shows your gaze direction, face detection, and FPS.
 
 ### Active reading with inline quizzes
 
@@ -83,6 +88,7 @@ Two builds in one repo:
 | **Install** | `npm install` | None -- open the file |
 | **Bundle** | ~75 KB gzip | Single ~40 KB HTML file |
 | **PDF support** | Yes (pdf.js) | No (TXT/MD only) |
+| **Eye tracking** | Yes (webcam) | No |
 | **Drag & resize UI** | Yes | No |
 | **Touch optimized** | Works | Optimized |
 
@@ -163,9 +169,9 @@ A collapsible left sidebar with **four tabs**:
 | **Library** | Paste, upload, URL fetch, sample library, recent history |
 | **Presets** | Switch, rename, save, duplicate, export, import, delete |
 | **Text** | Speed (WPM, chunk, slowdown, ramp-up, punctuation) + Typography (font, size, weight, ORP color, letter spacing, transform, emphasis) |
-| **Visual** | Background mode, overlay, screen mode, panel shape and opacity, progress style, guide line, text opacity, text background |
+| **Visual** | Background mode, overlay, screen mode, panel shape and opacity, progress style, guide line, text opacity, text background, gaze detection |
 
-The panel itself has an **opacity slider** and an **auto-hide** toggle that closes it on playback start. A 10-pixel hover strip on the left edge brings it back instantly.
+The panel slides over the reader as a transparent overlay (the background doesn't resize). It has an **opacity slider** and an **auto-hide** toggle that closes it on playback start.
 
 ### Playback controls
 
@@ -207,6 +213,28 @@ The trailing number (1-based) is the index of the correct answer. 2-4 options su
 
 **Try it:** load the **Study Demo** sample (5 questions about the solar system) from the Library tab and switch to the **Study preset** for the full experience.
 
+### Eye tracking (gaze detection)
+
+SensoryReader can use your webcam to track your eyes and **automatically pause playback when you look away**. No special hardware required &mdash; just a standard laptop webcam.
+
+**How it works:**
+
+- Uses **MediaPipe FaceLandmarker** (loaded from CDN on demand) to detect 468 face landmarks including iris positions
+- Computes gaze direction (center, left, right, up, down) by measuring iris position relative to eye corners
+- Detects eye closedness via eye aspect ratio
+- GPU-accelerated via WebGL for smooth real-time performance
+
+**Features:**
+
+- **Toggle on/off** &mdash; eye icon in the toolbar, or the Visual settings tab
+- **Calibration-free mode** &mdash; works out of the box with sensible defaults
+- **5-point calibration** &mdash; look at dots at center, left, right, top, and bottom to personalize thresholds for your face and camera position. Guided or manual mode. Calibration is saved to `localStorage`.
+- **Auto-pause with tolerance** &mdash; configurable delay (200&ndash;2000ms) before pausing on lost gaze, preventing false triggers from blinks or brief glances
+- **Smart resume** &mdash; only auto-resumes if it was gaze detection that paused playback; manual pauses are respected
+- **Live debug panel** &mdash; draggable overlay showing camera preview with face bounding box, gaze reticle, iris offsets (raw and calibrated), eye openness, FPS, and contextual tips
+- **Toolbar indicator** &mdash; green dot (gaze detected), red pulsing dot (gaze lost), yellow (initializing), or error icon. Click to open the debug panel.
+- **Clear recent history** &mdash; trash icon in the toolbar to clear recent document history
+
 ### Persistence
 
 Saved to `localStorage`:
@@ -214,6 +242,7 @@ Saved to `localStorage`:
 - Per-document reading position (keyed by content hash)
 - Custom presets
 - Recent document history (up to 20) with cached text (up to 5)
+- Eye tracking calibration data
 - Usage stats (total words read, average WPM, sessions)
 
 ---
@@ -275,6 +304,7 @@ Includes everything from the full app **except** PDF support, drag/resize UI, an
 - **React 19** + **TypeScript**
 - **Vite 8** (dev server with proxies for CORS-restricted sources)
 - **pdfjs-dist** for PDF text extraction (worker bundled locally via `?url` import &mdash; no CDN)
+- **@mediapipe/tasks-vision** for eye tracking (FaceLandmarker, loaded from CDN on demand &mdash; not bundled)
 - **No state management library** &mdash; just `useRef`, `useState`, and `useCallback`
 - **No CSS framework** &mdash; CSS custom properties and vanilla CSS
 - **No backend** &mdash; everything runs client-side
@@ -306,6 +336,7 @@ SensoryReader/
 │  │  └─ testParser.ts          -- inline quiz marker parser
 │  ├─ hooks/
 │  │  ├─ useReaderEngine.ts     -- core playback loop (ref-based timer)
+│  │  ├─ useGazeDetection.ts    -- eye tracking with MediaPipe FaceLandmarker
 │  │  ├─ useScreenRecorder.ts   -- MediaRecorder wrapper
 │  │  ├─ useKeyboard.ts         -- keyboard shortcut bindings
 │  │  ├─ useLocalStorage.ts     -- typed localStorage hook
@@ -334,7 +365,9 @@ SensoryReader/
 │  │  ├─ DraggableBox.tsx       -- drag/resize wrapper
 │  │  ├─ RecordButton.tsx       -- screen recorder UI
 │  │  ├─ QuizModal.tsx          -- pop quiz multiple-choice modal
-│  │  └─ EditTextModal.tsx      -- inline text and quiz editor
+│  │  ├─ EditTextModal.tsx      -- inline text and quiz editor
+│  │  ├─ GazeDebugPanel.tsx     -- draggable eye tracking debug overlay
+│  │  └─ GazeCalibration.tsx    -- fullscreen 5-point calibration UI
 │  ├─ types/index.ts
 │  └─ styles/index.css
 └─ content/
@@ -352,6 +385,9 @@ SensoryReader/
 - **Pointer-events layering.** Content layers use `pointer-events: none` with `auto` on direct children, so clicks pass through empty space to the YouTube iframe underneath while UI elements stay interactive.
 - **Sidebar opacity via pseudo-element.** A `::before` element holds the background with `opacity` controlled by a CSS variable, keeping text fully readable at any transparency level.
 - **Sentinel positioning.** `DraggableBox` accepts `-1` (center), `-2` (bottom-right), and `-3` (center-x, below-center-y) as initial coordinates, resolved to pixels on first render.
+- **Eye tracking via CDN import.** MediaPipe FaceLandmarker (~5 MB) is loaded with a dynamic `import()` from jsDelivr CDN only when the user enables gaze detection. This keeps the initial bundle small and avoids Vite/WASM bundling issues. The `@vite-ignore` directive prevents Vite from trying to resolve the URL.
+- **Calibration normalizes iris ratios.** Raw iris position relative to eye corners varies per person and camera angle. The 5-point calibration captures the user's natural center offset and movement range, then normalizes all readings so "1.0" means "at the edge of your screen" regardless of face geometry. Calibration data persists in `localStorage`.
+- **Sidebar as overlay.** The settings panel is positioned absolutely and slides over the reader content, so the background never resizes when the panel opens or closes.
 
 ---
 

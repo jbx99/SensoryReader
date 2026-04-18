@@ -619,6 +619,31 @@ export function ConfigPanel({
             <span className="ctrl-hint">Pop quiz on inline test markers like <code>[?Q?A?B?C?2?]</code></span>
 
             <hr className="ctrl-divider" />
+            <p className="ctrl-section-label">Gaze Detection</p>
+
+            <label className="ctrl-toggle">
+              <input
+                type="checkbox"
+                checked={config.display.gazeDetectionEnabled}
+                onChange={(e) => update('display', { gazeDetectionEnabled: e.target.checked })}
+              />
+              <span>Auto-pause on look away</span>
+            </label>
+            <span className="ctrl-hint">Uses webcam to detect when you look away and pauses playback</span>
+
+            {config.display.gazeDetectionEnabled && (
+              <div className="ctrl-group">
+                <label className="ctrl-label">
+                  Pause delay
+                  <span className="ctrl-value">{config.display.gazePauseTolerance}ms</span>
+                </label>
+                <input type="range" min={200} max={2000} step={100} value={config.display.gazePauseTolerance}
+                  onChange={(e) => update('display', { gazePauseTolerance: Number(e.target.value) })} />
+                <span className="ctrl-hint">How long to wait before pausing after gaze is lost</span>
+              </div>
+            )}
+
+            <hr className="ctrl-divider" />
 
             <div className="ctrl-group">
               <label className="ctrl-label">

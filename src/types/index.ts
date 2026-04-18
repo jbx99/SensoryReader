@@ -96,6 +96,8 @@ export interface DisplayConfig {
   textOpacity: number;       // 0-1
   textBackground: TextBackgroundConfig;
   testingEnabled: boolean;   // pop quiz on test markers
+  gazeDetectionEnabled: boolean;   // auto-pause when user looks away
+  gazePauseTolerance: number;      // ms before pausing on lost gaze
 }
 
 export interface ReaderConfig {

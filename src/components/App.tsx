@@ -5,8 +5,9 @@ import { useReaderEngine } from '../hooks/useReaderEngine';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { usePersistence } from '../hooks/usePersistence';
+import { useGazeDetection } from '../hooks/useGazeDetection';
 import { contentHash } from '../input/parseText';
-import { addToHistory, getHistory, cacheText, getCachedText } from '../input/recentHistory';
+import { addToHistory, getHistory, clearHistory, cacheText, getCachedText } from '../input/recentHistory';
 import { WELCOME_TEXT } from '../data/welcomeText';
 import { parseTestMarkers } from '../engine/testParser';
 import { ReaderDisplay } from './ReaderDisplay';
@@ -18,6 +19,8 @@ import { QuizModal } from './QuizModal';
 import { EditTextModal } from './EditTextModal';
 import { DraggableBox } from './DraggableBox';
 import { RecordButton } from './RecordButton';
+import { GazeDebugPanel } from './GazeDebugPanel';
+import { GazeCalibration } from './GazeCalibration';
 
 export function App() {
   const [activePresetId, setActivePresetId] = useState('welcome');
@@ -34,6 +37,8 @@ export function App() {
   const [currentRawText, setCurrentRawText] = useState<string>('');
   const [currentTitle, setCurrentTitle] = useState<string>('');
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [gazeDebugOpen, setGazeDebugOpen] = useState(false);
+  const [gazeCalibrationOpen, setGazeCalibrationOpen] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
 
   const { isFullscreen } = useFullscreen();
@@ -77,6 +82,32 @@ export function App() {
   }, []);
 
   const engine = useReaderEngine(config, handleEngineConfigChange, handleQuizReached);
+
+  // Gaze detection — auto-pause when user looks away from screen
+  const gazeDetection = useGazeDetection(
+    config.display.gazeDetectionEnabled,
+    config.display.gazePauseTolerance
+  );
+
+  // Track whether playback was active before gaze-triggered pause
+  const gazePausedRef = useRef(false);
+
+  useEffect(() => {
+    if (!config.display.gazeDetectionEnabled) {
+      gazePausedRef.current = false;
+      return;
+    }
+
+    if (!gazeDetection.gazePresent && engine.status === 'playing') {
+      // User looked away while playing — pause
+      engine.pause();
+      gazePausedRef.current = true;
+    } else if (gazeDetection.gazePresent && gazePausedRef.current) {
+      // User looked back — resume only if we were the ones who paused
+      engine.play();
+      gazePausedRef.current = false;
+    }
+  }, [gazeDetection.gazePresent, config.display.gazeDetectionEnabled, engine]);
 
   // Load welcome text on mount
   const welcomeLoaded = useRef(false);
@@ -241,7 +272,7 @@ export function App() {
       <div className="reader-main">
         <BackgroundEngine config={config.background} playbackStatus={engine.status}>
           {/* Top toolbar — always has a trigger to reappear */}
-          <div className={`reader-toolbar ${showControls ? '' : 'reader-toolbar--hidden'}`}>
+          <div className={`reader-toolbar ${showControls ? '' : 'reader-toolbar--hidden'} ${sidebarOpen ? 'reader-toolbar--sidebar-open' : ''}`}>
             <button
               className={`toolbar-btn ${sidebarOpen ? 'toolbar-btn--active' : ''}`}
               onClick={() => setSidebarOpen((v) => !v)}
@@ -270,6 +301,67 @@ export function App() {
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
             </button>
+            <button
+              className={`toolbar-btn ${config.display.gazeDetectionEnabled ? 'toolbar-btn--active' : ''}`}
+              onClick={() => handleConfigChange({ ...config, display: { ...config.display, gazeDetectionEnabled: !config.display.gazeDetectionEnabled } })}
+              title={config.display.gazeDetectionEnabled ? 'Disable gaze detection' : 'Enable gaze detection — auto-pause when you look away'}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            {recentDocs.length > 0 && (
+              <button
+                className="toolbar-btn"
+                onClick={() => { clearHistory(); setDocVersion((v) => v + 1); }}
+                title="Clear recent history"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              </button>
+            )}
+
+            {config.display.gazeDetectionEnabled && gazeDetection.gazeState === 'tracking' && (
+              <div
+                className="toolbar-gaze-indicator"
+                title="Click to open gaze debug panel"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setGazeDebugOpen((v) => !v)}
+              >
+                <span
+                  className={`gaze-dot ${gazeDetection.gazePresent ? 'gaze-dot--present' : 'gaze-dot--away'}`}
+                />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </div>
+            )}
+            {config.display.gazeDetectionEnabled && gazeDetection.gazeState === 'initializing' && (
+              <div
+                className="toolbar-gaze-indicator"
+                title="Starting camera... Click to open debug panel"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setGazeDebugOpen((v) => !v)}
+              >
+                <span className="gaze-dot gaze-dot--initializing" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </div>
+            )}
+            {config.display.gazeDetectionEnabled && gazeDetection.gazeState === 'error' && (
+              <div
+                className="toolbar-gaze-indicator toolbar-gaze-indicator--error"
+                title={`${gazeDetection.error ?? 'Gaze detection error'} — Click to open debug panel`}
+                style={{ cursor: 'pointer' }}
+                onClick={() => setGazeDebugOpen((v) => !v)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </div>
+            )}
 
             <div className="toolbar-title">
               {engine.status === 'playing' ? `${engine.effectiveWpm} WPM` : 'Paused'}
@@ -378,6 +470,36 @@ export function App() {
             handleLoadText(text, title);
           }}
           onCancel={() => setEditModalOpen(false)}
+        />
+      )}
+
+      {/* Gaze debug panel */}
+      {gazeDebugOpen && config.display.gazeDetectionEnabled && (
+        <GazeDebugPanel
+          gazeState={gazeDetection.gazeState}
+          gazePresent={gazeDetection.gazePresent}
+          gazeDirection={gazeDetection.gazeDirection}
+          debug={gazeDetection.debug}
+          error={gazeDetection.error}
+          tolerance={config.display.gazePauseTolerance}
+          videoElement={gazeDetection.videoElement}
+          calibration={gazeDetection.calibration}
+          onClose={() => setGazeDebugOpen(false)}
+          onRestart={() => {
+            gazeDetection.stop();
+            setTimeout(() => gazeDetection.start(), 100);
+          }}
+          onCalibrate={() => setGazeCalibrationOpen(true)}
+        />
+      )}
+
+      {/* Gaze calibration overlay */}
+      {gazeCalibrationOpen && config.display.gazeDetectionEnabled && (
+        <GazeCalibration
+          calibration={gazeDetection.calibration}
+          onCapture={gazeDetection.captureCalibrationPoint}
+          onReset={gazeDetection.resetCalibration}
+          onClose={() => setGazeCalibrationOpen(false)}
         />
       )}
     </div>

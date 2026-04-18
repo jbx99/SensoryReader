@@ -60,6 +60,8 @@ const BASE_CONFIG: ReaderConfig = {
       fixedWidth: 900,
     },
     testingEnabled: false,
+    gazeDetectionEnabled: false,
+    gazePauseTolerance: 500,
   },
 };
 
